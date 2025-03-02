@@ -105,6 +105,129 @@ var1="Hello"
 var2="World"
 echo "${var1} ${var2}" -> Hello World
 ``` 
-3. 
+3. command line parameters
+4. piping commands
+5. child scripts
+6. variables scope
+7. exit codes
+8. comments
 
+### Braces, Brackets, and Parentheses
+- subshell `( )` : A subshell is a child process that runs in a separate shell environment. It is not affected by the parent shell.
+example:
+```bash
+var="Hello"
+echo "Var outside: $var"  # Hello
+
+( var="World"; echo "Var in subshell: $var" )  # Chạy trong subshell
+
+echo "Var outside: $var"  # Vẫn là "Hello"
+```
+
+- Double parentheses `(( ))` : Double parentheses are used for arithmetic operations. No return value is required but can be used to return exit codes values 0 for true and 1 for false.
+example:
+```bash
+i=1
+(( i+=9 ))   # Tăng i lên 9
+echo $i      # 10
+
+(( i=3 ))  
+echo $?      # 0 (thành công)
+
+(( i=0 ))  
+echo $?      # 1 (thất bại, vì giá trị bằng 0)
+```
+- Dollar parentheses `$( )` : Used to execute in a subshell and return the output of the command.
+example:
+```bash
+echo "path: $(pwd)"
+/home/user/scripts
+
+var=$(inner_var=10; echo $inner_var)
+echo $var
+10
+```
+- Dolar double parentheses `$(( ))` : Used for arithmetic operations and return the result of the operation.
+example:
+```bash
+i=1
+echo $(( i+=9 ))   # 10
+```
+- Single brackets `[ ]` : Used for conditional expressions and pattern matching. The return value is 0 for true and 1 for false.
+example:
+```bash
+[ -d /etc ] && echo "Directory exists" || echo "Directory does not exist"
+
+a=10
+b=20
+[ $a -eq $b ] && echo "Equal" || echo "Not equal"
+```
+- Double brackets `[[ ]]` : Used for **advanced** conditional expressions and pattern matching. The return value is 0 for true and 1 for false. It is recommended to use double brackets over single brackets.
+example:
+```bash
+var = "hello"
+[$var = $var ]&& echo "true" # Error : too many arguments
+[[ $var = $var ]] && echo "true" # true
+[["hello"=H*]] && echo "true" # support wildcard  
+```
+- Brace expansion `{ }` : Used to generate strings or numbers in a sequence.
+example:
+```bash
+echo {1..10} # 1 2 3 4 5 6 7 8 9 10
+echo {a..z} # a b c d e f g h i j k l m n o p q r s t u v w x y z
+echo {a..z..2} # a c e g i k m o q s u w y
+```
+- Dollar braces `${ }` : Used to expand variables and perform operations on variables.
+example:
+```bash
+var="Hello"
+echo "${var} World" # Hello World
+```
+
+### File Descriptors
+
+### Shell Scripting
+1. Interations 
+
+Looping in shell scripting
+ - for loop
+``` shell
+for var in (<numerical array>/<string array>)
+do 
+  <process>
+done
+```
+or
+``` shell
+for ((initialization; condition; step))
+do
+  <process>
+done
+```
+ - while loop
+``` shell
+while [condition]
+do
+  command
+done
+  ```
+while loop are commonly used to read a file line by line.
+``` shell
+cat ${filename} | while read -r line
+  do
+    echo $line
+  done
+```
+ - until loop
+``` shell
+until [condition]
+do 
+  <list of commands>
+done
+```
+***Note***: The until loop is the opposite of the while loop. The until loop executes the commands until the condition is true.
+
+2. Conditional Statements
+ - if statement
+``` shell
 
