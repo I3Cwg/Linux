@@ -230,4 +230,115 @@ done
 2. Conditional Statements
  - if statement
 ``` shell
+if [[condition]]
+then 
+  <list of commands>
+elif [[condition]]
+then
+  <list of commands>
+else
+  <list of commands>
+fi
+```
+ - case statement : is used instead of the IF statement when there are multiple branches depend on the value of a variable. The systax is:
+``` shell
+case <expression> in
+  pattern1)
+    <list of commands>
+    ;;
+  pattern2)
+    <list of commands>
+    ;;
+  *)
+    <list of commands>
+    ;;
+esac
+```
+3. Regular Expressions
+
+4. Arrays
+Bash supports both Indexed and Associative arrays. Indexed arrays are arrays that use numbers to index the elements. Associative arrays are arrays that use strings or numbers as indexes.
+ - Indexed arrays are declared as follows:
+``` shell
+declare -a arr=(1 2 3 4 5)
+or 
+declare -a arr
+arr=(1 2 3 4 5)
+or
+arr()
+{
+  arr[0]=1
+  arr[1]=2
+  arr[2]=3
+  arr[3]=4
+  arr[4]=5
+}
+```
+ - Associative arrays are declared as follows:
+``` shell
+declare -A arr
+arr=([key1]=value1 [key2]=value2)
+or
+arr()
+{
+  arr[key1]=value1
+  arr[key2]=value2
+}
+```
+* Array can be looped over using either: `${arr[@]} or ${arr[*]}`
+* In case of string elements with spaces the arrays expansion should be enclosed in double quotes: `"${arr[@]}" or "${arr[*]}"`
+* The entire array can be accessed using: `“${arr[@]} “`
+
+* To access an indexed element: `${arr[0]}`
+
+* To set a particular element: `arr[0]=”Value”`
+
+* To unset a particular element: `unset arr[0]`
+
+* To access all the indexes: `${!arr[@]}`
+
+* To append a value to the array without using an index: `arr+=( new_val )`
+
+* To find the length of an array: `${#arr[@]}`
+
+* To get a subset of an array: `${arr[@]:<start_index>:<end_index>}`
+
+### File processing
+1. AWK
+- awk is a powerful programming language that is used for processing text files.
+- awk is used to search for a pattern in a file and perform an action when the pattern is found.
+- The basic syntax of an awk command is:
+``` shell
+awk 'pattern { action }' filename
+```
+2. SED
+3. GREP
+
+### Cron Jobs
+- The cron utility is used to schedule commands to run at a specific time.
+- The common crontab commands are:
+``` shell
+crontab -e : Edit the crontab file
+crontab -l : List the crontab for the current user
+crontab -r : Remove the crontab for the current user
+crontab -v : Display the last time the crontab was edited
+```
+- A started template for a cron job is:
+``` shell
+* * * * * command_to_execute
+- - - - -
+| | | | |
+| | | | +---- Day of week (0 - Sunday, 6 - Thursday)
+| | | +------ Month (1 - 12)
+| | +-------- Day of month (1 - 31)
+| +---------- Hour (0 - 23)
++------------ Minutes (0 - 59)
+```
+example:
+``` shell
+0 12 * * * /bin/echo "Hello World" # Run at 12:00 PM every day
+```
+
+### Processing input and output
+
 
