@@ -82,7 +82,7 @@ drwxr-xr-x 136 root root 12288 Mar  2 04:13 ..
 3. Explaining the configuration files:
 Bind DNS server's main configuration file is `/etc/bind/named.conf`. But we will not directly edit this file.it includes other configuration files we needs to work with.
 - `named.conf` file appears as follows:
-```json
+```java
 cat /etc/bind/named.conf
 // This is the primary configuration file for the BIND DNS server named.
 //
