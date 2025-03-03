@@ -106,7 +106,7 @@ To configure the primary DNS server properly we work with each of these files.
 4. Configure DNS server options
 The first we need to configure the DNS server with essential parameters. The configuration file is `/etc/bind/named.conf.options`.
 The default configuration file looks like this:
-```json
+```js
 cat /etc/bind/named.conf.options
 options {
 	directory "/var/cache/bind";
@@ -134,7 +134,7 @@ options {
 };
 ```
 - We need provide the parameters to run the Primary DNS server with minimum configuration.
-```json
+```js
 acl local-network {
 	192.168.1.0/24
 };
@@ -225,7 +225,7 @@ sudo chown root:bind /etc/bind/zones
 We configured two DNS zones "zone lab.com" is the forward zone for the domain "lab.com" and "zone.1.168.192.in-addr.arpa" is the reverse zone for the domain "192.168.1.0/24".
 
 We also specificed the respective file localtions for oeach zone where their records will be stored.
-```json
+```js
 sudo nano /etc/bind/named.conf.local
 
 
@@ -256,7 +256,7 @@ cd /etc/bind/
 cp db.local /etc/bind/zones/forward.lab.com.db
 ```
 - default forward lookup zone file looks like this:
-```json
+```js
 cat db.local 
 ;
 ; BIND data file for local loopback interface
@@ -275,7 +275,7 @@ $TTL	604800
 @	IN	AAAA	::1
 ```
 - Now let modify the file `forward.lab.com.db` and create DNS records for the network devices.
-```json
+```js
 sudo nano /etc/bind/zones/forward.lab.com.db
 ;
 ; BIND data file for local loopback interface
@@ -309,7 +309,7 @@ cd /etc/bind/
 sudo cp db.127 /etc/bind/zones/reverse.192.168.1.db
 ```
 - Default reverse lookup zone file looks like this:
-```json
+```js
 sudo cat db.127 
 ;
 ; BIND reverse data file for local loopback interface
@@ -326,7 +326,7 @@ $TTL	604800
 1.0.0	IN	PTR	localhost.
 ```
 - Now let modify the file `reverse.192.168.1.db` and create DNS records for the network devices.
-```json
+```js
 sudo nano /etc/bind/zones/reverse.192.168.1.db 
 ;
 ; BIND reverse data file for local loopback interface
@@ -452,7 +452,7 @@ To ping the domain name we need allow ICMP traffic on the firewall. Open CMD as 
 netsh advfirewall firewall add rule name="ICMP Allow" protocol=icmpv4 dir=in action=allow
 ```
 Now we can ping the domain name.
-```json
+```js
 C:\Users\PC1>ping pc2.lab.com
 Pinging pc2.lab.com [192.168.1.142] with 32 bytes of data:
 Reply from 192.168.1.142: bytes=32 time<1ms TTL=128
@@ -465,7 +465,7 @@ Ping statistics for 192.168.1.142:
 Approximate round trip times in milli-seconds:
     Minimum = 0ms, Maximum = 0ms, Average = 0ms
 ```
-```json
+```js
 C:\Users\PC2>ping pc1.lab.com
 Pinging pc1.lab.com [192.168.1.141] with 32 bytes of data:
 Reply from 192.168.1.141: bytes=32 time<1ms TTL=128
