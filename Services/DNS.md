@@ -30,7 +30,7 @@ The way DNS works is as follows:
 4. The root DNS server returns the IP address of the top-level domain (TLD) server to the ISP's DNS server.
 5. The ISP's DNS server sends a request to the TLD server to resolve the domain name.
 
-### Primary DNS server
+## Primary DNS server
 A primary DNS server is the authoritative for a specific domain name. The primary DNS server is responsible for storing the DNS records for the domain name.
 
 #### DNS zone and Zone files
@@ -479,7 +479,270 @@ Approximate round trip times in milli-seconds:
     Minimum = 0ms, Maximum = 1ms, Average = 0ms
 ```
 
+## Secondary DNS server
+A Secondary DNS server is a backup DNS server. It holds a read-only copy of the DNS zone file from the primary DNS server. It's main function is to provide redundancy and load balancing of DNS queries.
 
+If the Primary or Master DNS Server goes down or come offline for network issues, the Secondary DNS server can continue responding to DNS queries, ensuring that the domain remains accessible.
+
+Secondary DNS server also help to distribute the DNS query load. When multiple DNS servers are available, queries can be sent to any of them, reducing the load on the primary server.
+
+![ ](image-4.png)
+
+### What is Zone transfer?
+Master and Slave DNS Server remains up to date with the zone data through Zone transfer. Usually Master DNS Server sends periodic zone update to the Slave DNS Server.
+![alt text](image-5.png)
+This is a very common practice to deploy a dedicated Linux DNS Server for the Secondary DNS, but in this scenario, slave DNS just stays stand-by, it doesn’t do anything when the master is alive.
+
+As we discussed earlier, master/slave design is not server specific, it is zone specific.
+
+### Secondary DNS server lab scenario
+
+Previously we deployed a Primary DNS server, Now we will upgrade the scenario by adding another Linux DNS server as Secondary DNS server.
+
+### Secondary DNS Installation Prequesties:
+*BEFORE* Secondary DNS configuration We need  configure the Primary DNS server to allow zone transfer to the Secondary DNS server.
+
+1. Create DNS Records for the Secondary DNS server
+- modify the forward lookup zone file `/etc/bind/zones/forward.lab.com.db` and add the following record for the Secondary DNS server.
+```js
+sudo nano /etc/bind/zones/forward.lab.com.db
+;
+; BIND data file for local loopback interface
+;
+$TTL	604800
+@	IN	SOA	localhost. root.localhost. (
+			      2		; Serial
+			 604800		; Refresh
+			  86400		; Retry
+			2419200		; Expire
+			 604800 )	; Negative Cache TTL
+@	IN	NS	ns1.lab.com.
+@	IN	NS	ns2.lab.com.
+
+ns1	IN	A	192.168.1.139
+ns2	IN	A	192.168.1.140
+
+pc1	IN	A	192.168.1.141
+pc2	IN	A	192.168.1.142
+pc3	IN	A	192.168.1.143
+```
+- modify the reverse lookup zone file `/etc/bind/zones/reverse.192.168.1.db` and Update the PTR records for the Secondary DNS server.
+```js 
+sudo cat /etc/bind/zones/reverse.192.168.1.db 
+;
+; BIND reverse data file for local loopback interface
+;
+$TTL	604800
+@	IN	SOA	localhost. root.localhost. (
+			      1		; Serial
+			 604800		; Refresh
+			  86400		; Retry
+			2419200		; Expire
+			 604800 )	; Negative Cache TTL
+@	IN	NS	ns1.lab.com.	; PTR Records for Reverse Lookup
+@	IN	NS	ns2.lab.com.
+;
+139	IN	PTR	ns1.lab.com.
+140	IN	PTR	ns2.lab.com.
+
+141	IN	PTR	pc1.lab.com.
+142	IN	PTR	pc2.lab.com.
+143	IN	PTR	pc3.lab.com.
+```
+2. Allow Secondary DNS server to transfer zone data
+Zone transfer is restricted by default, only allowed servers will be able to get the zone data from the Primary DNS server. So we need to allow the Secondary DNS server to transfer the zone data.
+
+- Edit the `/etc/bind/named.conf.local` file and add the following configuration to allow the Secondary DNS server to transfer the zone data allow-transfer { IP_ADDRESS; };
+```js
+sudo nano /etc/bind/named.conf.local 
+//
+// Do any local configuration here
+//
+
+// Consider adding the 1918 zones here, if they are not used in your
+// organization
+//include "/etc/bind/zones.rfc1918";
+
+zone "lab.com" {
+    type master;
+    file "/etc/bind/zones/forward.lab.com.db";
+    allow-update { none; };
+    allow-transfer {192.168.1.140; };
+};
+
+zone "1.168.192.in-addr.arpa" {
+    type master;
+    file "/etc/bind/zones/reverse.192.168.1.db";
+    allow-update { none; };
+    allow-tranfer {192.168.1.140; };
+};
+```
+- Restart the BIND service to apply the changes.
+```bash
+sudo systemctl restart bind9
+```
+
+### Install and configure Secondary DNS server
+#### Step 1: System Preparation
+1. Setup hostsname:
+```bash 
+hostnamectl set-hostname ns2.lab.com
+```
+2. Setup FQDN( Fully Qualified Domain Name):
+```js
+sudo cat /etc/hosts
+127.0.0.1	localhost
+127.0.1.1	seconddns-vm
+
+192.168.1.140	ns2.rainbow.com	ns2
+
+# The following lines are desirable for IPv6 capable hosts
+::1     ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+```
+Check with hostname, hostname -f, and dnsdomainname commands.
+
+3. network configuration:
+Using the Primary DNS server as the preferred nameserver address: after DNS server installation, we need to configure the network to use the Primary DNS server as the preferred nameserver.
+```js
+sudo nano /etc/netplan/50-cloud-init.yaml
+network:
+    ethernets:
+        ens33:  	# chọn đúng network interface name
+            addresses:
+            - 192.168.1.140/24
+            nameservers:
+                addresses:
+                - 192.168.1.139
+                search: []
+            routes:
+            -   to: default
+                via: 192.168.1.2
+    version: 2
+```
+```bash
+sudo netplan apply
+```
+
+4. Disable AppArmor
+We are not using AppArmor in this lab, better disable it, otherwise it causes issues when zone transfer.
+```bash
+systemctl stop apparmor
+systemctl disable apparmor
+```
+#### Step 2: Install BIND9
+```bash
+sudo apt update -y && sudo apt upgrade -y
+apt install bind9 bind9utils -y
+```
+#### Step 3: Configure Secondary DNS server
+Like the Primary DNS server, we need to configure the Secondary DNS server with the essential parameters.
+
+On the listen-on {secondary_dns_ip;} 
+```js
+acl local-network {
+	192.168.1.0/24;
+};
+
+options {
+	directory "/var/cache/bind";
+	dnssec-validation auto;
+	allow-query { localhost; local-network; };
+	recursion yes;	
+	listen-on-v6 { any; };
+	listen-on {192.168.1.140; };
+};
+```
+
+#### Step 4: Configure the Secondary DNS server to receive zone transfer.
+Now we need to create the zone files options
+
+for each zone we have to define the zone and the file location.
+```js
+sudo nano /etc/bind/named.conf.local
+
+zone "lab.com" {
+    type secondary;
+    file "/etc/bind/zones/forward.lab.com.db";
+    masters {192.168.1.139;};
+    allow-notify {192.168.1.139;};
+};
+
+zone "1.168.192.in-addr.arpa" {
+    type secondary;
+    file "/etc/bind/zones/reverse.192.168.1.db";
+    masters {192.168.1.139;};
+    allow-notify {192.168.1.139;};
+};
+```
+Summary of the configuration:
+- type secondary: Specifies that the DNS server is a secondary server.
+- file "/etc/bind/zones/forward.lab.com.db": Specifies the location of the zone file.
+- masters {192.168.1.139; };: Specifies the IP address of the Primary DNS server.
+- allow-notify {192.168.1.139;};: Specifies the IP address of the Primary DNS server.
+
+Check configuration and systax:
+```bash
+named-checkconf /etc/bind/named.conf.local
+named-checkconf /etc/bind/named.conf.options
+```
+Create /etc/bind/zones directory:
+```bash
+mkdir /etc/bind/zones
+chown root:bind /etc/bind/zones
+```
+Disable Bind service to listen on IPv6:
+- disable IPv6, allow only IPv4
+```bash
+sudo cat /etc/default/named
+#
+# run resolvconf?
+RESOLVCONF=no
+
+# startup options for the server
+OPTIONS="-u bind -4"
+```
+- Restart the BIND service to apply the changes.
+```bash
+sudo systemctl restart bind9
+```
+#### Step 5: Testing Secondary DNS server
+1. Test Zone files are Auto Created
+- If all configurations are correct, the Secondary DNS server will automatically create the zone files.
+```bash
+ls -al /etc/bind/zones
+total 16
+drwxr-sr-x 2 bind bind 4096 Thg 3   4 17:38 .
+drwxr-sr-x 3 root bind 4096 Thg 3   4 17:37 ..
+-rw-r--r-- 1 bind bind  356 Thg 3   4 17:38 forward.lab.com.db
+-rw-r--r-- 1 bind bind  506 Thg 3   4 17:38 reverse.192.168.1.db
+```
+2. test Primary DNS server can manually transfer the zone data to the Secondary DNS server.
+this is kind of a Linux DNS Server’s troubleshooting step, if the zone are not transferring, then we can do the test. sometimes, if we see any issue on zone transfer, we can perform this test.
+
+On the Slave Server, Execute the command ‘host -l lab.com 192.168.1.139’, this command shows all the data of a particular zone from a specific server through zone transfer.
+```bash
+host -l lab.com 192.168.1.139
+Using domain server:
+Name: 192.168.1.139
+Address: 192.168.1.139#53
+Aliases: 
+
+lab.com name server ns1.lab.com.
+lab.com name server ns2.lab.com.
+ns1.lab.com has address 192.168.1.139
+ns2.lab.com has address 192.168.1.140
+pc1.lab.com has address 192.168.1.141
+pc2.lab.com has address 192.168.1.142
+pc3.lab.com has address 192.168.1.143
+```
+3. Test DNS Name Resolution Using Ping
+- Shutdown the Primary DNS server and test the Secondary DNS server.
+- 
+## Caching DNS server
 
 
 
@@ -563,3 +826,4 @@ Install package for DNS documentation
 ```bash
 sudo apt install bind9-doc
 ```
+
